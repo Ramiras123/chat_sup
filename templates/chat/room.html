@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Chat room{% endblock %}
+{% block content %}
+    <div class="container">
+	    <div class="row no-gutters">
+    	  <div class="col-md-8">
+		<div class="settings-tray">
+			<div class="friend-drawer no-gutters friend-drawer--grey">
+			<img class="profile-image" src="https://www.clarity-enhanced.net/wp-content/uploads/2020/06/robocop.jpg" alt="">
+			<div class="text">
+			  <h6>Robo Cop</h6>
+			  <p class="text-muted">Layin' down the law since like before Christ...</p>
+			</div>
+			<span class="settings-tray--right">
+			  <i class="material-icons">cached</i>
+			  <i class="material-icons">message</i>
+			  <i class="material-icons">menu</i>
+			</span>
+		  </div>
+		</div>
+              <div id="chat" style="height: 700px; overflow-y: auto;">
+              </div>
+		  <div class="row">
+			<div class="col-12">
+			  <div class="chat-box-tray">
+				<input type="text" placeholder="Type your message here..." id="chat-message-input">
+                  <span class="settings-tray--right">
+                      <i id='chat-message-submit' class="material-icons">send</i>
+                  </span>
+			  </div>
+			</div>
+		  </div>
+		</div>
+        </div>
+    </div>
+{% endblock %}
+{% block include_js %}
+    {{ chat_id|json_script:"chat_id"}}
+    {{ request.user.username|json_script:"request_user" }}
+{% endblock %}
+{% block domready %}
+    <script>
+            const userId = JSON.parse(
+                document.getElementById('chat_id').textContent
+            );
+            const requestUser = JSON.parse(
+                document.getElementById('request_user').textContent
+            );
+            const url = 'ws://'+window.location.host+'/ws/chat/room/'+userId+'/';
+            const chatSocket = new WebSocket(url);
+            chatSocket.onmessage = function (event) {
+              const data = JSON.parse(event.data);
+              const chat = document.getElementById('chat');
+              const dateOptions = {hour: 'numeric', minute: 'numeric', hour12: false};
+              const datetime = new Date(data.datetime).toLocaleString('en', dateOptions);
+              const username = data.user ? data.user : 'Аноним';
+              const isMe = data.user === requestUser && data.user !== '';
+              const source = isMe ? '<div class="row no-gutters"><div class="col-md-4 offset-md-7">'+
+                    			'<div class="chat-bubble chat-bubble--right" style="word-wrap: break-word">' + '<h6>' + username +
+                                '</h6>' + data.message + '<br><span class="time text-muted small">'+datetime+'</span>'+
+                                '</div></div><div class="friend-drawer align-items-center"><img class="profile-rooms-image" src="https://www.clarity-enhanced.net/wp-content/uploads/2020/06/robocop.jpg" alt=""></div>' :
+                                '<div class="row no-gutters"><div class="friend-drawer align-items-center">'+
+                                '<img class="profile-rooms-image" src="https://www.clarity-enhanced.net/wp-content/uploads/2020/06/robocop.jpg" alt="">'+
+                    			'</div><div class="col-md-5"><div class="chat-bubble chat-bubble--left" style="word-wrap: break-word">' + '<h6>' + username +
+                                '</h6>' + data.message + '<br><span class="time text-muted small">'+datetime+'</span></div></div></div></div>';
+
+              chat.innerHTML += source;
+              chat.scrollTop = chat.scrollHeight;
+            };
+            chatSocket.onclose = function (event) {
+                console.error('Чат закрыт');
+                window.location.reload();
+            };
+            const input = document.getElementById('chat-message-input');
+            const submitButton = document.getElementById('chat-message-submit');
+            submitButton.addEventListener('click', function(event) {
+             const message = input.value;
+             if(message) {
+             // отправить сообщение в формате JSON
+             chatSocket.send(JSON.stringify({'message': message}));
+             // очистить поле ввода
+             input.value = '';
+             input.focus();
+             }
+            });
+            input.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                  // cancel the default action, if needed
+                  event.preventDefault();
+                  // trigger click event on button
+                  submitButton.click();
+                }
+            });
+    </script>
+{% endblock %}
+
